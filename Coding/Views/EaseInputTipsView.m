@@ -8,6 +8,7 @@
 
 #import "EaseInputTipsView.h"
 #import "Login.h"
+#import <UIKit/UIKit.h>
 
 @interface EaseInputTipsView ()<UITableViewDelegate,UITableViewDataSource>
 
@@ -34,6 +35,10 @@
         
         _type = type;
         _active = YES;
+        
+        self.translatesAutoresizingMaskIntoConstraints = false
+        
+        [self addConstraint:nil];
         
     }
     return self;
