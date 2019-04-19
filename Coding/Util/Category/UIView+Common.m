@@ -231,4 +231,23 @@ static char BlankPageViewKey, LoadingViewKey;
     }
 }
 
+#pragma mark - 动画曲线转换
++ (UIViewAnimationOptions)animationOptionsForCurve:(UIViewAnimationCurve)curve {
+    switch (curve) {
+        case UIViewAnimationCurveEaseInOut:
+            return UIViewAnimationOptionCurveEaseInOut;
+            break;
+        case UIViewAnimationCurveEaseIn:
+            return UIViewAnimationOptionCurveEaseIn;
+            break;
+        case UIViewAnimationCurveEaseOut:
+            return UIViewAnimationOptionCurveEaseOut;
+            break;
+        case UIViewAnimationCurveLinear:
+            return UIViewAnimationOptionCurveLinear;
+            break;
+    }
+    return kNilOptions;
+}
+
 @end

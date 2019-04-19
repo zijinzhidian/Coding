@@ -488,6 +488,19 @@
     }];
 }
 
+#pragma mark - Topic
+- (void)request_BannersWithBlock:(void (^)(id data, NSError *error))block{
+    [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:@"api/banner/type/app" withParams:nil withMethodType:Get autoShowError:NO andBlock:^(id data, NSError *error) {
+        if (data) {
+            data = [data valueForKey:@"data"];
+            NSArray *resultA = [NSArray arrayFromJSON:data ofObjects:@"CodingBanner"];
+            block(resultA, nil);
+        }else{
+            block(nil, error);
+        }
+    }];
+}
+
 #pragma mark - Other
 - (void)request_VerifyTypeWithBlock:(void (^)(VerifyType type, NSError *error))block {
     [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:@"api/user/2fa/method" withParams:nil withMethodType:Get andBlock:^(id data, NSError *error) {

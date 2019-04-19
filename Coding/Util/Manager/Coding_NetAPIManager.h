@@ -94,6 +94,10 @@ typedef NS_ENUM(NSUInteger, VerifyType) {
 //获取标签或分支的代码
 - (void)request_CodeBranchOrTagWithPath:(NSString *)path withPro:(Project *)project andBlock:(void (^)(id data, NSError *error))block;
 
+#pragma mark - Topic
+//获取Banner数据
+- (void)request_BannersWithBlock:(void (^)(id data, NSError *error))block;
+
 #pragma mark - Other
 //获取校验类型
 - (void)request_VerifyTypeWithBlock:(void (^)(VerifyType type, NSError *error))block;

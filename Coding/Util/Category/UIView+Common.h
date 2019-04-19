@@ -57,4 +57,7 @@
 - (void)beginLoading;
 - (void)endLoading;
 
+#pragma mark - 动画曲线转换
++ (UIViewAnimationOptions)animationOptionsForCurve:(UIViewAnimationCurve)curve;
+
 @end

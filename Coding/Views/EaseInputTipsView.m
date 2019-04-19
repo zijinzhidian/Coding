@@ -36,9 +36,8 @@
         _type = type;
         _active = YES;
         
-        self.translatesAutoresizingMaskIntoConstraints = false
+        self.translatesAutoresizingMaskIntoConstraints = false;
         
-        [self addConstraint:nil];
         
     }
     return self;
