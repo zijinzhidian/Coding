@@ -25,6 +25,8 @@
 - (BOOL)isGK;
 //判断是否为文件名
 - (BOOL)isFileName;
+//判断去掉前后空格后是否为空字符串
+- (BOOL)isEmpty;
 
 #pragma mark - 加密
 //MD5加密
@@ -59,5 +61,8 @@
 - (NSURL *)urlImageWithCodePathResize:(CGFloat)width crop:(BOOL)needCrop;
 //获取自适应视图宽度的图片url,不裁剪
 - (NSURL *)urlImageWithCodePathResizeToView:(UIView *)view;
+
+#pragma mark - 表情名称
+- (NSString *)emotionSpecailName;
 
 @end

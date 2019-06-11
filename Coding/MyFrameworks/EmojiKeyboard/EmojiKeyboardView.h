@@ -38,7 +38,11 @@ NS_ASSUME_NONNULL_END
 
 @protocol EmojiKeyboardDelegate <NSObject>
 
+- (void)emojiKeyboardView:(EmojiKeyboardView *)emojiKeyboardView didUseEmoji:(NSString *)emoji;
 
+- (void)emojiKeyboardViewDidPressBackSpace:(EmojiKeyboardView *)emojiKeyboardView;
+
+- (void)emojiKeyboardViewDidPressSendButton:(EmojiKeyboardView *)emojiKeyboardView;
 
 @end
 

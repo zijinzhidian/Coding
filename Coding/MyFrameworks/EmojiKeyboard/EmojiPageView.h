@@ -40,6 +40,8 @@ NS_ASSUME_NONNULL_END
 
 @protocol EmojiPageViewDelegate <NSObject>
 
+- (void)emojiPageView:(EmojiPageView *)emojiPageView didUseEmoji:(NSString *)emoji;
 
+- (void)emojiPageViewDidPressBackSpace:(EmojiPageView *)emojiPageView;
 
 @end

@@ -2,7 +2,7 @@
 //  UIMessageInputView_Voice.m
 //  Coding
 //
-//  Created by apple on 2019/3/21.
+//  Created by apple on 2019/5/15.
 //  Copyright © 2019年 zjbojin. All rights reserved.
 //
 
@@ -47,12 +47,12 @@ typedef NS_ENUM(NSInteger, UIMessageInputView_VoiceState) {
         _volumeLeftView = [[AudioVolumeView alloc] initWithFrame:CGRectMake(0, 0, kAudioVolumeViewWidth, kAudioVolumeViewHeight) type:AudioVolumeViewTypeLeft];
         _volumeLeftView.hidden = YES;
         [self addSubview:_volumeLeftView];
-      
+        
         //右侧音量视图
         _volumeRightView = [[AudioVolumeView alloc] initWithFrame:CGRectMake(0, 0, kAudioVolumeViewWidth, kAudioVolumeViewHeight) type:AudioVolumeViewTypeRight];
         _volumeRightView.hidden = YES;
         [self addSubview:_volumeRightView];
-       
+        
         //录音按钮视图
         _recordView = [[AudioRecordView alloc] initWithFrame:CGRectMake((self.frame.size.width - 86) / 2, 62, 86, 86)];
         _recordView.delegate = self;
@@ -187,3 +187,4 @@ typedef NS_ENUM(NSInteger, UIMessageInputView_VoiceState) {
 }
 
 @end
+

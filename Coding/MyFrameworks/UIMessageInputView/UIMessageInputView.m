@@ -17,13 +17,23 @@
 #import "UIPlaceHolderTextView.h"
 #import "UIMessageInputView_Add.h"
 #import "UIMessageInputView_Voice.h"
-#import "EmojiKeyboardView.h"
+#import "UIMessageInputView_Media.h"
 
-@interface UIMessageInputView ()<EmojiKeyboardDataSource, EmojiKeyboardDelegate>
+#import "QBImagePickerController.h"
+#import "Helper.h"
+
+#import "Coding_FileManager.h"
+
+static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
+
+@interface UIMessageInputView ()<EmojiKeyboardDataSource, EmojiKeyboardDelegate, UITextViewDelegate, QBImagePickerControllerDelegate>
 
 @property(nonatomic, strong)UIScrollView *contentView;                  //输入框内容视图
 @property(nonatomic, strong)UIPlaceHolderTextView *inputTextView;       //输入框视图
 @property(nonatomic, strong)UIButton *arrowKeyboardButton;              //处于说话界面时的箭头按钮
+
+@property(nonatomic, strong)NSMutableArray *mediaList;
+@property(nonatomic, strong)NSMutableArray *uploadMediaList;
 
 @property(nonatomic, strong)EmojiKeyboardView *emojiKeyboardView;       //表情按钮视图
 @property(nonatomic, strong)UIMessageInputView_Add *addKeyboardView;    //添加按钮视图
@@ -35,6 +45,9 @@
 @property(nonatomic, strong)UIButton *voiceButton;                      //说话按钮
 
 @property(nonatomic, assign)UIMessageInputViewState inputState;         //输入键盘状态
+
+@property(nonatomic, strong)MBProgressHUD *progressHUD;                 //上传进度HUD
+@property(nonatomic, strong)NSString *uploadingPhotoName;              //正在上传的图片名称
 
 @end
 
@@ -177,6 +190,7 @@
         _inputTextView.font = [UIFont systemFontOfSize:16];
         _inputTextView.returnKeyType = UIReturnKeySend;
         _inputTextView.scrollsToTop = NO;
+        _inputTextView.delegate = self;
         [_contentView addSubview:_inputTextView];
         
         //输入框缩进
@@ -211,6 +225,7 @@
         _photoButton = [UIButton buttonWithType:UIButtonTypeCustom];
         _photoButton.frame = CGRectMake(kScreen_Width - toolBtnNum * kMessageInputView_ButtonWidth - kMessageInputView_ButtonDistance, (kMessageInputView_Height - kMessageInputView_ButtonWidth) / 2, kMessageInputView_ButtonWidth, kMessageInputView_ButtonWidth);
         [_photoButton setImage:[UIImage imageNamed:@"keyboard_photo"] forState:UIControlStateNormal];
+        [_photoButton addTarget:self action:@selector(phoneButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:_photoButton];
     }
     _photoButton.hidden = !hasPhotoBtn;
@@ -238,6 +253,8 @@
     //表情按钮视图
     if (hasEmotionBtn && !_emojiKeyboardView) {
         _emojiKeyboardView = [[EmojiKeyboardView alloc] initWithFrame:CGRectMake(0, kScreen_Height, kScreen_Width, kKeyboardView_Height) dataSource:self showBigEmotion:showBigEmotion];
+        _emojiKeyboardView.delegate = self;
+        [_emojiKeyboardView setY:kScreen_Height];
     }
     
     //添加按钮视图
@@ -293,6 +310,107 @@
         } else {
             return NO;
         }
+    }
+}
+
+//发送消息
+- (void)sentTextStr {
+    //情况缓存的输入数据
+    [self deleteInputData];
+    
+    NSMutableString *sendStr = [NSMutableString stringWithString:self.inputTextView.text];
+    if (sendStr && ![sendStr isEmpty] && self.delegate && [self.delegate respondsToSelector:@selector(messageInputView:sendText:)]) {
+        [self.delegate messageInputView:self sendText:sendStr];
+    }
+}
+
+#pragma mark - remember input
+- (NSMutableDictionary *)shareInputStrDict {
+    if (!_inputStrDict) {
+        _inputStrDict = [[NSMutableDictionary alloc] init];
+    }
+    return _inputStrDict;
+}
+
+- (NSMutableDictionary *)shareInputMediaDict {
+    if (!_inputMediaDict) {
+        _inputMediaDict = [[NSMutableDictionary alloc] init];
+    }
+    return _inputMediaDict;
+}
+
+//保存到字典的key
+- (NSString *)inputKey{
+    NSString *inputKey = nil;
+    if (_contentType == UIMessageInputViewContentTypePriMsg) {
+        inputKey = [NSString stringWithFormat:@"privateMessage_%@", self.toUser.global_key];
+    }else{
+        if (_commentOfId) {
+            switch (_contentType) {
+                case UIMessageInputViewContentTypeTweet:
+                    inputKey = [NSString stringWithFormat:@"tweet_%@_%@", _commentOfId.stringValue, _toUser.global_key.length > 0? _toUser.global_key:@""];
+                    break;
+                case UIMessageInputViewContentTypeTopic:
+                    inputKey = [NSString stringWithFormat:@"topic_%@_%@", _commentOfId.stringValue, _toUser.global_key.length > 0? _toUser.global_key:@""];
+                    break;
+                case UIMessageInputViewContentTypeTask:
+                    inputKey = [NSString stringWithFormat:@"task_%@_%@", _commentOfId.stringValue, _toUser.global_key.length > 0? _toUser.global_key:@""];
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    return inputKey;
+}
+
+//获取保存的输入字符串
+- (NSString *)inputStr {
+    NSString *inputKey = [self inputKey];
+    if (inputKey) {
+        return [[self shareInputStrDict] objectForKey:inputKey];
+    }
+    return nil;
+}
+
+//获取保存的输入多媒体
+- (NSMutableArray *)inputMedia {
+    NSString *inputKey = [self inputKey];
+    if (inputKey) {
+        return [[self shareInputMediaDict] objectForKey:inputKey];
+    }
+    return nil;
+}
+
+//保存输入字符串
+- (void)saveInputStr {
+    NSString *inputStr = self.inputTextView.text;
+    NSString *inputKey = [self inputKey];
+    if (inputKey && inputStr.length > 0) {
+        [[self shareInputStrDict] setObject:inputStr forKey:inputKey];
+    } else {
+        [[self shareInputStrDict] removeObjectForKey:inputKey];
+    }
+}
+
+//保存输入的多媒体
+- (void)saveInputMedia {
+    NSString *inputKey = [self inputKey];
+    if (inputKey && inputKey.length > 0) {
+        if (self.mediaList.count > 0) {
+            [[self shareInputMediaDict] setObject:self.mediaList forKey:inputKey];
+        } else {
+            [[self shareInputMediaDict] removeObjectForKey:inputKey];
+        }
+    }
+}
+
+//删除保存的数据,包括字符串和多媒体
+- (void)deleteInputData {
+    NSString *inputKey = [self inputKey];
+    if (inputKey && inputKey.length > 0) {
+        [[self shareInputStrDict] removeObjectForKey:inputKey];
+        [[self shareInputMediaDict] removeObjectForKey:inputKey];
     }
 }
 
@@ -359,6 +477,22 @@
     } completion:NULL];
 }
 
+- (void)phoneButtonClicked:(UIButton *)sender {
+    
+    if (![Helper checkPhotoLibraryAuthorizationStatus]) {
+        return;
+    }
+    
+    [self isAndResignFirstResponder];
+    
+    QBImagePickerController *imagePickerController = [[QBImagePickerController alloc] init];
+    imagePickerController.mediaType = QBImagePickerMediaTypeImage;
+    imagePickerController.delegate = self;
+    imagePickerController.allowsMultipleSelection = YES;
+    imagePickerController.maximumNumberOfSelection = 6;
+    [[BaseViewController presentingVC] presentViewController:imagePickerController animated:YES completion:NULL];
+}
+
 - (void)arrowButtonClicked:(UIButton *)sender {
     [self isAndResignFirstResponder];
 }
@@ -409,6 +543,86 @@
 }
 
 #pragma mark - EmojiKeyboardDelegate
+- (void)emojiKeyboardView:(EmojiKeyboardView *)emojiKeyboardView didUseEmoji:(NSString *)emoji {
+    NSString *emotion_monkey = [emoji emotionSpecailName];
+    if (emotion_monkey) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(messageInputView:sendBigEmotion:)]) {
+            [self.delegate messageInputView:self sendBigEmotion:emotion_monkey];
+        }
+    } else {
+        [self.inputTextView insertText:emoji];
+    }
+}
+
+- (void)emojiKeyboardViewDidPressBackSpace:(EmojiKeyboardView *)emojiKeyboardView {
+    [self.inputTextView deleteBackward];
+}
+
+#pragma mark - QBImagePickerControllerDelegate
+- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets {
+    _uploadMediaList = [[NSMutableArray alloc] initWithCapacity:assets.count];
+    for (PHAsset *asset in assets) {
+        [_uploadMediaList addObject:[UIMessageInputView_Media mediaWithAsset:asset urlStr:nil]];
+    }
+    [self doUploadMediaList];
+}
+
+- (void)qb_imagePickerControllerDidCancel:(QBImagePickerController *)imagePickerController {
+    [[BaseViewController presentingVC] dismissViewControllerAnimated:true completion:nil];
+}
+
+#pragma mark - uploadMedia
+- (void)doUploadMediaList {
+    __block UIMessageInputView_Media *media = nil;
+    __block NSInteger index = 0;
+    [_uploadMediaList enumerateObjectsUsingBlock:^(UIMessageInputView_Media *obj, NSUInteger idx, BOOL *stop) {
+        media = obj;
+        index = idx;
+        *stop = YES;
+    }];
+    if (media && media.curAsset) {
+        [self doUploadMedia:media withIndex:index];
+    } else {
+        //隐藏progressHUD
+        [self hudTipWillShow:nil];
+        [[BaseViewController presentingVC] dismissViewControllerAnimated:YES completion:nil];
+    }
+}
+
+- (void)doUploadMedia:(UIMessageInputView_Media *)media withIndex:(NSInteger)index {
+    NSString *originalFileName = media.curAsset.fileName;
+    NSString *fileName = [NSString stringWithFormat:@"%@|||%@|||%@", self.curProject.id.stringValue, @"0", originalFileName];
+    NSLog(@"----%@",fileName);
+    //写入磁盘
+//    if ([Coding_FileManager writeUploadDataWithFileName:fileName andAsset:media.curAsset]) {
+//        [self hudTipWillShow:[NSString stringWithFormat:@"正在上传第 %ld 张图片...", (long)index + 1]];
+//        media.state = UIMessageInputView_MediaStateUploading;
+//        self.uploadingPhotoName = originalFileName;
+//        Coding_UploadTask *uploadTask = [[Coding_FileManager sharedManager] ];
+//    } else {
+//
+//    }
+}
+
+- (void)hudTipWillShow:(NSString *)tipStr {
+    if (tipStr.length > 0) {
+        //收起键盘
+        [self resignFirstResponder];
+        
+        if (!_progressHUD) {
+            _progressHUD = [MBProgressHUD showHUDAddedTo:kKeyWindow animated:YES];
+            _progressHUD.mode = MBProgressHUDModeDeterminateHorizontalBar;
+            _progressHUD.removeFromSuperViewOnHide = YES;
+        } else {
+            [kKeyWindow addSubview:_progressHUD];
+            [_progressHUD showAnimated:NO];
+        }
+        _progressHUD.progress = 0;
+        _progressHUD.label.text = tipStr;
+    } else {
+        [_progressHUD hideAnimated:NO];
+    }
+}
 
 #pragma mark - Getters And Setters
 - (void)setPlaceHolder:(NSString *)placeHolder {

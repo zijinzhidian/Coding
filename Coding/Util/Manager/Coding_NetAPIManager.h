@@ -13,6 +13,8 @@
 #import "Projects.h"
 #import "CodeFile.h"
 #import "ProjectMember.h"
+#import "PrivateMessages.h"
+#import "UnReadManager.h"
 
 //校验类型
 typedef NS_ENUM(NSUInteger, VerifyType) {
@@ -53,6 +55,8 @@ typedef NS_ENUM(NSUInteger, VerifyType) {
 #pragma mark - UnRead
 //获取未读消息的数目
 - (void)request_UnReadCountWithBlock:(void (^)(id data, NSError *error))block;
+//获取消息通知
+- (void)request_UnReadNotificationsWithBlock:(void (^)(id data, NSError *error))block;
 
 #pragma mark - Project
 //获取项目的类型和数目
@@ -101,5 +105,9 @@ typedef NS_ENUM(NSUInteger, VerifyType) {
 #pragma mark - Other
 //获取校验类型
 - (void)request_VerifyTypeWithBlock:(void (^)(VerifyType type, NSError *error))block;
+
+#pragma mark - Message
+//获取私有消息
+- (void)request_PrivateMessages:(PrivateMessages *)priMsgs andBlock:(void (^)(id data, NSError *error))block;
 
 @end

@@ -14,6 +14,10 @@
 + (UIImage *)imageWithColor:(UIColor *)aColor;
 + (UIImage *)imageWithColor:(UIColor *)aColor withFrame:(CGRect)aFrame;
 
+#pragma mark - 缩放图片
+- (UIImage *)scaledToSize:(CGSize)targetSize;
+- (UIImage *)scaledToSize:(CGSize)targetSize highQuality:(BOOL)highQuality;
+
 #pragma mark - 图片压缩为NSData
 - (NSData *)dataSmallerThan:(CGFloat)maxLength;
 - (NSData *)dataForCodingUpload;

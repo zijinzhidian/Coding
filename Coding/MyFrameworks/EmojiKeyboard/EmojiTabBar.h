@@ -19,6 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property(nonatomic, assign)NSInteger selectedIndex;
 
+@property(nonatomic, strong)UIButton *sendButton;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -28,7 +28,7 @@
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor randomColor];
     
-    self.myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypePriMsg];
+    self.myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypeTask];
     self.myMsgInputView.isAlwaysShow = YES;
     
 //    [self.view addSubview:self.tableView];

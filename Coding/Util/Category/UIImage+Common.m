@@ -26,6 +26,45 @@
 }
 
 
+#pragma mark - 缩放图片
+- (UIImage *)scaledToSize:(CGSize)targetSize {
+    UIImage *sourceImage = self;
+    UIImage *newImage = nil;
+    CGSize imageSize = sourceImage.size;
+    CGFloat scaleFactor = 0.0;      //缩放因子
+    if (CGSizeEqualToSize(imageSize, targetSize) == NO) {
+        //根据宽高确定缩放因子
+        CGFloat widthFactor = targetSize.width / imageSize.width;
+        CGFloat heightFactor = targetSize.height / imageSize.height;
+        if (widthFactor < heightFactor) {
+            scaleFactor = heightFactor;
+        } else {
+            scaleFactor = widthFactor;
+        }
+    }
+    scaleFactor = MIN(scaleFactor, 1);
+    //根据比例因子重新确定目标缩放尺寸
+    CGFloat targetWidth = imageSize.width * scaleFactor;
+    CGFloat targetHeight = imageSize.height * scaleFactor;
+    targetSize = CGSizeMake(floorf(targetWidth), floorf(targetHeight));
+    
+    UIGraphicsBeginImageContext(targetSize);
+    [sourceImage drawInRect:CGRectMake(0, 0, ceilf(targetWidth), ceilf(targetHeight))];
+    newImage = UIGraphicsGetImageFromCurrentImageContext();
+    if (!newImage) {
+        newImage = sourceImage;
+    }
+    UIGraphicsEndImageContext();
+    return newImage;
+}
+
+- (UIImage *)scaledToSize:(CGSize)targetSize highQuality:(BOOL)highQuality {
+    if (highQuality) {
+        targetSize = CGSizeMake(2 * targetSize.width, 2 * targetSize.height);
+    }
+    return [self scaledToSize:targetSize];
+}
+
 #pragma mark - 图片压缩为NSData
 - (NSData *)dataSmallerThan:(CGFloat)maxLength {
     NSAssert(maxLength > 0, @"maxLength 必须是个大于零的数");

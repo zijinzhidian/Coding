@@ -7,6 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "EmojiKeyboardView.h"
 
 typedef NS_ENUM(NSInteger, UIMessageInputViewContentType) {
     UIMessageInputViewContentTypeTweet = 0,                 //冒泡评论
@@ -34,6 +35,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign, readonly)UIMessageInputViewContentType contentType;        //内容类型
 @property(nonatomic, assign)BOOL isAlwaysShow;              //是否总是显示在底部
 
+@property(nonatomic, strong)User *toUser;
+@property(nonatomic, strong)NSNumber *commentOfId;
+@property(nonatomic, strong)Project *curProject;
+
 + (instancetype)messageInputViewWithType:(UIMessageInputViewContentType)type;
 + (instancetype)messageInputViewWithType:(UIMessageInputViewContentType)type placeHolder:(NSString *)placeHolder;
 
@@ -53,5 +58,8 @@ NS_ASSUME_NONNULL_END
 - (void)messageInputView:(UIMessageInputView *)inputView addIndexClick:(NSInteger)index;
 //说话视图中说话完成的回调
 - (void)messageInputView:(UIMessageInputView *)inputView sendVoice:(NSString *)file duration:(NSTimeInterval)duration;
-
+//点击大表情发送的回调
+- (void)messageInputView:(UIMessageInputView *)inputView sendBigEmotion:(NSString *)emotionName;
+//点击发送消息的回调
+- (void)messageInputView:(UIMessageInputView *)inputView sendText:(NSString *)text;
 @end

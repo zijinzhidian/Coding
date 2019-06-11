@@ -11,7 +11,6 @@
 @interface EmojiTabBar ()
 
 @property(nonatomic, strong)UIScrollView *scrollView;
-@property(nonatomic, strong)UIButton *sendButton;
 
 @property(nonatomic, strong)NSArray *selectedImages;
 @property(nonatomic, strong)NSArray *unSelectedImages;

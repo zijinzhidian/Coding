@@ -178,6 +178,35 @@
     }];
 }
 
+- (void)request_UnReadNotificationsWithBlock:(void (^)(id data, NSError *error))block {
+    NSMutableDictionary *notificationDict = [[NSMutableDictionary alloc] init];
+    [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:@"api/notification/unread-count" withParams:@{@"type":@(0)} withMethodType:Get andBlock:^(id data, NSError *error) {
+        if (data) {
+            //@我的
+            [notificationDict setObject:[data valueForKeyPath:@"data"] forKey:kUnReadKey_notification_AT];
+            [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:@"api/notification/unread-count" withParams:@{@"type":@[@(1), @(2)]} withMethodType:Get andBlock:^(id dataComment, NSError *errorComment) {
+                if (dataComment) {
+                    //评论
+                    [notificationDict setObject:[dataComment valueForKeyPath:@"data"] forKey:kUnReadKey_notification_Comment];
+                    [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:@"api/notification/unread-count" withParams:@{@"type":@[@(4), @(6)]} withMethodType:Get andBlock:^(id dataSystem, NSError *errorSystem) {
+                        if (dataSystem) {
+                            //系统
+                            [notificationDict setObject:[dataSystem valueForKeyPath:@"data"] forKey:kUnReadKey_notification_System];
+                            block(notificationDict, nil);
+                        } else {
+                            block(nil, errorSystem);
+                        }
+                    }];
+                } else {
+                    block(nil, errorComment);
+                }
+            }];
+        } else {
+            block(nil, error);
+        }
+    }];
+}
+
 #pragma mark - Project
 - (void)request_ProjectsCatergoryAndCounts_WithObj:(ProjectCount *)pCount andBlock:(void (^)(ProjectCount *data, NSError *error))block {
     [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:@"api/project_count" withParams:nil withMethodType:Get andBlock:^(id data, NSError *error) {
@@ -515,6 +544,29 @@
             block(type, nil);
         } else {
             block(VerifyTypeUnKnow, error);
+        }
+    }];
+}
+
+#pragma mark - Message
+- (void)request_PrivateMessages:(PrivateMessages *)priMsgs andBlock:(void (^)(id data, NSError *error))block {
+    priMsgs.isLoading = YES;
+    [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:[priMsgs toPath] withParams:[priMsgs toParams] withMethodType:Get andBlock:^(id data, NSError *error) {
+        priMsgs.isLoading = NO;
+        if (data) {
+            id resultA = [PrivateMessages analyzeResponseData:data];
+            block(resultA, nil);
+            
+            //标记为已读
+            if (priMsgs.curFriend && priMsgs.curFriend.global_key) {
+                [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:[NSString stringWithFormat:@"api/message/conversations/%@/read", priMsgs.curFriend.global_key] withParams:nil withMethodType:Post autoShowError:NO andBlock:^(id data, NSError *error) {
+                    if (data) {
+                        [[UnReadManager shareManager] updateUnRead];
+                    }
+                }];
+            }
+        } else {
+            block(nil, error);
         }
     }];
 }

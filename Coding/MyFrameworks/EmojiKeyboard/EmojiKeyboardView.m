@@ -51,7 +51,12 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
             self.tabBar = [[EmojiTabBar alloc] initWithFrame:CGRectMake(0, selfHeight - easeTabBar_Height, self.bounds.size.width, easeTabBar_Height) selectedImages:self.imagesForSelectedSegments unSelectedImages:self.imagesForNonSelectedSegments];
         }
         self.tabBar.selectedIndexChangedBlock = ^(EmojiTabBar * _Nonnull tabBar) {
-            
+            [weakSelf categoryChangeViaSegmentsBar:tabBar];
+        };
+        self.tabBar.sendButtonClickedBlock = ^{
+            if (weakSelf.delegate && [weakSelf.delegate respondsToSelector:@selector(emojiKeyboardViewDidPressSendButton:)]) {
+                [weakSelf.delegate emojiKeyboardViewDidPressSendButton:weakSelf];
+            }
         };
         self.tabBar.selectedIndex = self.defaultSelectCategory;
         [self addSubview:self.tabBar];
@@ -90,6 +95,31 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     return self;
 }
 
+- (void)layoutSubviews {
+    CGSize pageControlSize = [self.pageControl sizeForNumberOfPages:3];
+    NSUInteger numberOfPages = [self numberOfPagesForCategory:self.category];
+    
+    NSInteger currentPage = (self.pageControl.currentPage > numberOfPages) ? numberOfPages : self.pageControl.currentPage;
+    
+    // if (currentPage > numberOfPages) it is set implicitly to max pageNumber available
+    self.pageControl.numberOfPages = numberOfPages;
+    pageControlSize = [self.pageControl sizeForNumberOfPages:numberOfPages];
+    self.pageControl.frame = CGRectIntegral(CGRectMake((CGRectGetWidth(self.bounds) - pageControlSize.width) / 2,
+                                                       CGRectGetHeight(self.bounds) - CGRectGetHeight(self.tabBar.bounds) - pageControlSize.height - 10.0,
+                                                       pageControlSize.width,
+                                                       pageControlSize.height));
+    
+    self.scrollView.frame = CGRectMake(0,
+                                       0,
+                                       CGRectGetWidth(self.bounds),
+                                       CGRectGetHeight(self.bounds) - CGRectGetHeight(self.tabBar.bounds) - pageControlSize.height- 20.0);
+    [self.scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+    self.scrollView.contentOffset = CGPointMake(CGRectGetWidth(self.scrollView.bounds) * currentPage, 0);
+    self.scrollView.contentSize = CGSizeMake(CGRectGetWidth(self.scrollView.bounds) * numberOfPages, CGRectGetHeight(self.scrollView.bounds));
+    [self purgePageViews];
+    self.pageViews = [NSMutableArray array];
+    [self setPage:currentPage];
+}
 
 #pragma mark - Data Source
 //表情列表
@@ -206,6 +236,14 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     return array;
 }
 
+//根据开始和结束索引返回类别的表情符号
+- (NSMutableArray *)emojiTextsForCategory:(NSString *)category fromIndex:(NSUInteger)start toIndex:(NSUInteger)end {
+    NSArray *emojis = [self emojiListForCategory:category];
+    end = emojis.count > end ? end : emojis.count;
+    NSIndexSet *index = [[NSIndexSet alloc] initWithIndexesInRange:NSMakeRange(start, end - start)];
+    return [[emojis objectsAtIndexes:index] mutableCopy];
+}
+
 #pragma mark - Change a page on scrollView
 /**
  初始化pageView
@@ -235,16 +273,28 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     return pageView;
 }
 
-
+//设置pageView
 - (void)setEmojiPageViewInScrollView:(UIScrollView *)scrollView atIndex:(NSUInteger)index {
     //判断是否需要设置pageView
     if (![self requireToSetPageViewForIndex:index]) {
-        NSLog(@"不需要设置pageView");
         return;
     }
     
     EmojiPageView *pageView = [self usableEmojiPageView];
-    NSLog(@"---%ld",index);
+    
+    NSUInteger rows = [self numberOfRows];
+    NSUInteger columns = [self numberOfColumns];
+    NSInteger numberOfEmojisOnAPage;
+    if ([self.category hasPrefix:@"big_"]) {
+        numberOfEmojisOnAPage = rows * columns;
+    } else {
+        numberOfEmojisOnAPage = rows * columns - 1;
+    }
+    NSUInteger startingIndex = index * numberOfEmojisOnAPage;
+    NSUInteger endingIndex = (index + 1) * numberOfEmojisOnAPage;
+    NSMutableArray *buttonTexts = [self emojiTextsForCategory:self.category fromIndex:startingIndex toIndex:endingIndex];
+    [pageView setButtonTexts:buttonTexts forCategory:self.category];
+    
     pageView.frame = CGRectMake(index * CGRectGetWidth(scrollView.bounds), 0, CGRectGetWidth(scrollView.bounds), CGRectGetHeight(scrollView.bounds));
     
 }
@@ -257,15 +307,11 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     }
     
     //如果pageView已经存在于数组里面,则不需要重新设置
-    NSLog(@"~~~~%ld",self.pageViews.count);
     for (EmojiPageView *pageView in self.pageViews) {
-        NSLog(@"此处需要循环");
         if (pageView.frame.origin.x / CGRectGetWidth(self.scrollView.bounds) == index) {
-            NSLog(@"pageView已存在于数组");
             return NO;
         }
     }
-    
     return YES;
 }
 
@@ -284,7 +330,6 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     
     //若不存在则创建
     if (!pageView) {
-        NSLog(@"初始化一个pageView");
         pageView = [self synthesizeEmojiPageView];
     }
     return pageView;
@@ -296,6 +341,24 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     [self setEmojiPageViewInScrollView:self.scrollView atIndex:page + 1];
 }
 
+- (void)purgePageViews {
+    for (EmojiPageView *page in self.pageViews) {
+        page.delegate = nil;
+    }
+    self.pageViews = nil;
+}
+
+#pragma mark - Public Methods
+- (void)setDoneButtonTitle:(NSString *)doneStr {
+    [self.tabBar.sendButton setTitle:doneStr forState:UIControlStateNormal];
+}
+
+#pragma mark - Private Methods
+- (void)categoryChangeViaSegmentsBar:(EmojiTabBar *)sender {
+    self.category = [self categoryNameAtIndex:sender.selectedIndex];
+    self.pageControl.currentPage = 0;
+    [self setNeedsLayout];
+}
 
 #pragma mark - UIScrollViewDelegate
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
@@ -308,13 +371,21 @@ static CGFloat easeTabBar_Height = 36.0;                        //底部标签�
     [self setPage:self.pageControl.currentPage];
 }
 
-#pragma mark - Public Methods
-- (void)setDoneButtonTitle:(NSString *)doneStr {
+#pragma mark - EmojiPageViewDelegate
+- (void)emojiPageView:(EmojiPageView *)emojiPageView didUseEmoji:(NSString *)emoji {
+    NSAssert(emoji != nil, @"Emoji can't be nil");
     
+    if (self.delegate && [self.delegate respondsToSelector:@selector(emojiKeyboardView:didUseEmoji:)]) {
+        [self.delegate emojiKeyboardView:self didUseEmoji:emoji];
+    }
 }
 
+- (void)emojiPageViewDidPressBackSpace:(EmojiPageView *)emojiPageView {
+    if (self.delegate && [self.delegate respondsToSelector:@selector(emojiKeyboardViewDidPressBackSpace:)]) {
+        [self.delegate emojiKeyboardViewDidPressBackSpace:self];
+    }
+}
 
-#pragma mark - Private Methods
 
 
 @end
